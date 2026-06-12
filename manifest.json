@@ -1,0 +1,40 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "PolarApp",
+  "orientation": "portrait",
+  "scope": "/",
+  "short_name": "Polar",
+  "start_url": "https://yorwindelgado3-dot.github.io/repositoriodeyorwin/",
+  "theme_color": "#ffffff",
+  "id": "PolarApp1",
+  "description": "gestion de inventario",
+  "lang": "es",
+ "icons": [
+    {
+      "src": "https://cdn.glitch.global/07548f0e-3d12-4217-91f8-028f804245cc/icon-192.png?v=1626782800000",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn.glitch.global/07548f0e-3d12-4217-91f8-028f804245cc/icon-512.png?v=1626782800000",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 0
+  },
+  "share_target": {
+    "method": "GET",
+    "action": "./index.html",
+    "params": {
+      "title": "tittle",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}
