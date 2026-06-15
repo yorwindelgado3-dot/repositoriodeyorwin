@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <link rel="manifest" href="./manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1a1a1a">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Inventario Profesional</title>
+    <style>
+        * {box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-text-size-adjust: none !important; text-size-adjust: none !important;}
+        body { background-color: #f0f2f5; display: flex; justify-content: center; height: 100dvh; overflow: hidden;}
+        .app-mobile {width: 100%; max-width: 400px; background-color: #ffffff; height: 100dvh;  position: relative; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); box-sizing: border-box;}
+        .pantalla-principal { display: none; flex-direction: column; height: 100%; }
+        .pantalla-principal.activa { display: flex; }
+        .login-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; background-color: #fff; }
+        .logo-box {width: 250px; height: 170px; background-color: white; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 30px; overflow: hidden;}
+        .logo-box img {width: 100%; height: 100%; object-fit: contain; image-rendering: auto; -webkit-backface-visibility: hidden;backface-visibility: hidden; -webkit-transform: translateZ(0);}
+        .input-group { width: 100%; margin-bottom: 20px; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 8px; outline: none;}
+        .btn-login { width: 100%; padding: 14px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .header { background-color: #1a1a1a; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .tasa-dolar { background-color: #007bff; padding: 5px 10px; border-radius: 15px; font-weight: bold; font-size: 14px; cursor: pointer; }
+        .content { flex: 1; padding: 20px; overflow-y: auto; background-color: #f8f9fa; min-height: 0;}
+        .sub-pantalla { display: none; flex-direction: column; align-items: center; text-align: center; height: 100%; color: #666; }
+        .sub-pantalla.activa { display: flex; }
+        .bottom-nav {background-color: #ffffff; border-top: 1px solid #e0e0e0; display: flex; justify-content: space-around; padding: 10px 0;padding-bottom: calc(10px + env(safe-area-inset-bottom)); flex-shrink: 0;}
+        .nav-btn { display: flex; flex-direction: column; align-items: center; background: none; border: none; color: #888; font-size: 11px; width: 20%; cursor: pointer; }
+        .nav-btn svg { width: 24px; height: 24px; stroke: #888; margin-bottom: 4px; }
+        .nav-btn.activa { color: #000; font-weight: bold;}
+        .nav-btn.activa svg { stroke: #000; }
+        .center-btn svg { background-color: #000; color: white; border-radius: 12px; width: 45px; height: 45px; padding: 10px; stroke: #fff; }
+        .center-btn.activa svg { background-color: #007bff; }
+
+/* --- CONFIGURACIÓN DE LOS LECTORES DE CÁMARA --- */
+        #lector-camara, #lector-camara-stock {
+            width: 100%; 
+            max-width: 320px; 
+            height: 200px; 
+            min-height: 200px; 
+            flex-shrink: 0; 
+            margin: 0 auto 15px auto; 
+            display: none; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            border: 3px solid #000; 
+            position: relative; 
+        }
+
+        #lector-camara video, #lector-camara-stock video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important; 
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+/* --- ESTILOS DEL MODAL DE TASA --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 9999;
+            backdrop-filter: blur(3px); 
+        }
+        .modal-overlay.activo { display: flex; }
+        .modal-content {
+            background: #fff; padding: 25px; border-radius: 16px; width: 85%; max-width: 320px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: aparecer 0.3s ease-out;
+        }
+        @keyframes aparecer { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-content h3 { margin-bottom: 10px; color: #1a1a1a; }
+        .modal-content p { font-size: 13px; color: #666; margin-bottom: 20px; }
+        .modal-content input { width: 100%; padding: 12px; border: 2px solid #ced4da; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 20px; font-weight: bold; color: #007bff; outline: none;}
+        .modal-content input:focus { border-color: #007bff; }
+        .modal-botones { display: flex; gap: 10px; }
+        .btn-guardar, .btn-cancelar { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; font-size: 15px;}
+        .btn-guardar { background-color: #007bff; }
+        .btn-cancelar { background-color: #6c757d; }
+
+/* --- ESTILOS DEL MÓDULO DE VENTAS --- */
+        .totales-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; width: 100%; box-sizing: border-box; }
+        .caja-total { background: #fff; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 4px solid #000; box-sizing: border-box; width: 100%; }
+        .caja-total.dolares { border-color: #000; }
+        .caja-total h4 { margin: 0; color: #6c757d; font-size: 13px; text-transform: uppercase; }
+        .caja-total span { display: block; font-size: 22px; font-weight: bold; color: #1a1a1a; margin-top: 5px; }
+        
+        .btn-vender-gran { width: 100%; background: #007bff; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(40,167,69,0.3); margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 8px; box-sizing: border-box; }
+        
+        #lector-camara-ventas { width: 100%; max-width: 320px; height: 200px; min-height: 200px; margin: 0 auto 15px auto; border-radius: 12px; overflow: hidden; border: 3px solid #000; display: block; box-sizing: border-box; }
+        #lector-camara-ventas video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+
+        .buscador-ventas-wrapper { position: relative; width: 100%; box-sizing: border-box; }
+        .buscador-ventas-wrapper input:focus { border-color: #000; }
+        
+        .dropdown-resultados { position: absolute; top: 100%; left: 0; width: 100%; background: #fff; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); max-height: 200px; overflow-y: auto; display: none; flex-direction: column; box-sizing: border-box; }
+        .dropdown-item { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:active { background-color: #f8f9fa; }
+        
+        .lista-carrito { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; padding-top: 5px; width: 100%; box-sizing: border-box; }
+        .item-carrito { background: #fff; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; }
+        .item-info-carrito { text-align: left; }
+        .item-info-carrito h4 { margin: 0 0 4px 0; color: #1a1a1a; font-size: 14px; }
+        .item-info-carrito p { margin: 0; color: #6c757d; font-size: 11px; font-weight: bold; }
+        .item-acciones { display: flex; gap: 8px; }
+        .btn-accion-carrito { width: 35px; height: 35px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-editar-c { background: #ffc107; color: #000; }
+        .btn-eliminar-c { background: #dc3545; color: #fff; }
+
+/* --- ESTILOS DEL MÓDULO DE ESTADÍSTICAS --- */
+        .metricas-contenedor { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; margin-bottom: 25px; }
+        .tarjeta-metrica { background: #fff; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 4px solid #000; }
+        .tarjeta-metrica h3 { margin: 0; color: #6c757d; font-size: 13px; text-transform: uppercase; }
+        .tarjeta-metrica p { font-size: 24px; font-weight: bold; color: #007bff; margin-top: 5px; }
+
+        .content {
+            -ms-overflow-style: none; 
+            scrollbar-width: none;     
+        }
+
+        .content::-webkit-scrollbar {
+            display: none;  
+        }
+
+        /* --- INVENTARIO--- */
+
+        .vista-categorias {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08), inset 0 0 12px rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .vista-categorias:active {
+            transform: translateY(2px) scale(0.98);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05), inset 0 0 15px rgba(255, 255, 255, 1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-mobile">
+    <div id="pantalla-login" class="pantalla-principal activa">
+        <div class="login-container">
+            <div class="logo-box">
+                <img src="./OSOO.png" alt="Logo de Oso">
+            </div>
+            <div class="input-group"><input type="text" id="inUsuario" placeholder="Usuario"></div>
+            <div class="input-group"><input type="password" id="inClave" placeholder="Contraseña"></div>
+            <button class="btn-login" onclick="iniciarSesion()">Iniciar sesión</button>
+            <button class="btn-login" onclick="registrarUsuario()" style="background-color: #6c757d; margin-top: 10px;">Registrar Nuevo</button>
+            <div id="msjError" style="margin-top: 15px; font-weight: bold; font-size: 14px;"></div>
+        </div>
+    </div>
+
+    <div id="pantalla-app" class="pantalla-principal">
+        <div class="header" style="display: flex; align-items: center; justify-content: flex-start; border-radius: 0 0 10px 10px;">
+            <img src="bcv.png" alt="Logo BCV" style="width: 30px; height: 30px; object-fit: contain; margin-right: 10px; background: white; border-radius: 50%; padding: 2px;">
+            
+            <h3 style="margin: 0; margin-right: auto;">Tasa BCV</h3>
+            
+            <div class="tasa-dolar" onclick="abrirModalTasa()" style="display: flex; align-items: center; gap: 6px;">
+                <span id="tasa-valor">00.00 Bs</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+            </div>
+        </div>
+        <div class="content">
+
+
+            <div id="tab-estadisticas" class="sub-pantalla" style="width: 100%;">
+                
+                <h3 style="color: #1a1a1a; text-align: left; width: 100%; margin-bottom: 15px; font-size: 18px; font-weight: bold;">
+                    Panel de Estadísticas
+                </h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; background: #fff; padding: 8px 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; margin-bottom: 20px; box-sizing: border-box;">
+                    
+                    <button onclick="cambiarFecha(-1)" style="border: none; background: #f0f2f5; width: 36px; height: 36px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: #1a1a1a; display: flex; align-items: center; justify-content: center;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        
+                        <div style="position: relative; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+                            <select id="selector-modo-tiempo" onchange="cambiarModoFiltro(this.value)" style="appearance: none; background: transparent; border: none; font-size: 11px; font-weight: bold; color: #007bff; text-transform: uppercase; padding-right: 14px; cursor: pointer; outline: none; text-align: center;">
+                                <option value="dia">Por Día</option>
+                                <option value="semana">Por Semana</option>
+                                <option value="mes" selected>Por Mes</option>
+                            </select>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; right: 0; pointer-events: none;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        
+                        <span id="label-filtro-fecha" style="font-size: 13px; font-weight: bold; color: #1a1a1a; letter-spacing: 0.5px;">[ FECHA ]</span>
+                    </div>
+
+                    <button onclick="cambiarFecha(1)" style="border: none; background: #f0f2f5; width: 36px; height: 36px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: #1a1a1a; display: flex; align-items: center; justify-content: center;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-bottom: 20px; box-sizing: border-box;">
+                    
+                    <div style="background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 3px solid #29AB50; text-align: left;">
+                        <span style="font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; display: block;">Ventas ($)</span>
+                        <span id="kpi-total-usd" style="font-size: 16px; font-weight: bold; color: #29AB50; margin-top: 4px; display: block;">$0.00</span>
+                    </div>
+
+                    <div style="background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 3px solid #366BC7; text-align: left;">
+                        <span style="font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; display: block;">Ventas (Bs)</span>
+                        <span id="kpi-total-bs" style="font-size: 16px; font-weight: bold; color: #366BC7; margin-top: 4px; display: block;">Bs 0.00</span>
+                    </div>
+
+                    <div style="background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 3px solid #1a1a1a; text-align: left;">
+                        <span style="font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; display: block;">Ticket Prom.</span>
+                        <span id="kpi-ticket-promedio" style="font-size: 16px; font-weight: bold; color: #1a1a1a; margin-top: 4px; display: block;">$0.00</span>
+                    </div>
+
+                    <div style="background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 3px solid #1a1a1a; text-align: left;">
+                        <span style="font-size: 11px; color: #6c757d; font-weight: 600; text-transform: uppercase; display: block;">Unidades</span>
+                        <span id="kpi-unidades" style="font-size: 16px; font-weight: bold; color: #1a1a1a; margin-top: 4px; display: block;">0</span>
+                    </div>
+                </div>
+
+                <div style="width: 100%; background: #fff; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 20px; box-sizing: border-box;">
+                    <h4 style="margin: 0 0 12px 0; font-size: 11px; color: #1a1a1a; text-align: left; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Evolución de Ventas</h4>
+                    <div style="height: 180px; width: 100%; position: relative;">
+                        <canvas id="chart-evolucion-ventas"></canvas>
+                    </div>
+                </div>
+
+                <div style="width: 100%; background: #fff; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 20px; box-sizing: border-box;">
+                    <h4 style="margin: 0 0 12px 0; font-size: 11px; color: #1a1a1a; text-align: left; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Ventas por Categoría</h4>
+                    <div style="height: 180px; width: 100%; position: relative;">
+                        <canvas id="chart-ventas-categorias"></canvas>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; padding-bottom: 20px; box-sizing: border-box; align-items: stretch;">
+                    
+                    <div style="background: #fff; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; padding: 12px; display: flex; flex-direction: column;">
+                        <h4 style="font-size: 11px; font-weight: bold; color: #1a1a1a; margin-bottom: 8px; text-align: left; text-transform: uppercase; border-bottom: 1px solid #f0f0f0; padding-bottom: 6px;">Top Productos</h4>
+                        <div id="lista-top-productos" style="font-size: 12px; text-align: left; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px;">
+                            </div>
+                    </div>
+
+                    <div style="background: #fff; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; padding: 12px; display: flex; flex-direction: column; justify-content: space-between;">
+                        <h4 style="font-size: 11px; font-weight: bold; color: #1a1a1a; margin-bottom: 8px; text-align: left; text-transform: uppercase; border-bottom: 1px solid #f0f0f0; padding-bottom: 6px;">Stock Resumen</h4>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                            <div style="background: #f8f9fa; border-radius: 8px; padding: 6px; text-align: center;">
+                                <span style="font-size: 9px; color: #6c757d; display: block; font-weight: 600;">Items</span>
+                                <span id="resumen-total-items" style="font-weight: bold; font-size: 13px; color: #1a1a1a; margin-top: 2px; display: block;">0</span>
+                            </div>
+                            <div style="background: #f8f9fa; border-radius: 8px; padding: 6px; text-align: center;">
+                                <span style="font-size: 9px; color: #6c757d; display: block; font-weight: 600;">Valor</span>
+                                <span id="resumen-valor-stock" style="font-weight: bold; font-size: 11px; color: #1a1a1a; margin-top: 4px; display: block;">$0.00</span>
+                            </div>
+                        </div>
+                        
+                        <div onclick="abrirModalBajoStock()" style="background: #fff5f5; border: 1px solid #ffe3e3; border-radius: 8px; padding: 6px; text-align: center; color: #e53e3e; cursor: pointer;">
+                            <span style="font-size: 9px; font-weight: bold; text-transform: uppercase; display: block; letter-spacing: 0.3px;">Bajo Stock ⚠️</span>
+                            <span id="resumen-bajo-stock" style="font-weight: 800; font-size: 15px; margin-top: 1px; display: block;">0</span>
+                        </div>
+
+                        <div id="modal-bajo-stock" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                            <div style="background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 15px;">
+                                <h3 style="margin-top: 0; color: #000; text-align: center;">Productos con poco stock</h3>
+                                
+                                <div id="lista-detalle-bajo-stock" style="height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-top: 15px;"></div>
+                                
+                                <button onclick="document.getElementById('modal-bajo-stock').style.display='none'" style="width: 100%; padding: 12px; margin-top: 15px; background: #1a1a1a; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+
+
+            <div id="tab-vender" class="sub-pantalla">
+                <div class="totales-grid">
+                    <div class="caja-total dolares">
+                        <h4>Total $</h4>
+                        <span id="txt-total-dolares">0.00</span>
+                    </div>
+                    <div class="caja-total">
+                        <h4>Total Bs</h4>
+                        <span id="txt-total-bs">0.00</span>
+                    </div>
+                </div>
+
+                <button class="btn-vender-gran" onclick="procesarVenta()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                    Procesar Venta
+                </button>
+
+                <div id="lector-camara-ventas"></div>
+
+                <div class="buscador-ventas-wrapper" style="flex-shrink: 0; margin-bottom: 15px; height: 48px; display: flex; align-items: center; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="min-width: 20px;">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                     </svg>
+
+                    <input type="text" id="input-busqueda-venta" placeholder="Buscar producto..." oninput="buscarEnVentas()" style="flex: 1; border: none; padding: 10px; outline: none; background: transparent; font-size: 15px; color: #333;">
+                    <div id="dropdown-ventas" class="dropdown-resultados"></div>
+                </div>
+
+                <div id="contenedor-carrito" class="lista-carrito">
+                    </div>
+            </div>
+
+            
+            <div id="tab-agregar" class="sub-pantalla">
+                <h3 style="color: #1a1a1a; text-align: left; width: 100%; margin-bottom: 15px; font-size: 18px; font-weight: bold;">
+                    Nuevo Producto
+                </h3>                
+                <div id="lector-camara" style="display: none;"></div>
+                
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Código de Barras / ID</label>
+                    <div style="display: flex; gap: 10px; align-items: stretch;">
+                        <input type="text" id="prodCodigo" placeholder="Escanea o escribe el código" style="flex: 1; height: 48px; color: #666; outline: none; box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                        
+                        <button id="btn-camara" onclick="toggleCamara()" style="display: flex; align-items: center; justify-content: center; background-color: #000; color: white; border: none; border-radius: 12px; cursor: pointer; width: 48px; height: 48px; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Nombre del Producto</label>
+                    <input type="text" id="prodNombre" placeholder="Ej. Pasta Mary 900g" style="width: 100%; height: 48px; outline: none; color: #666; box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                </div>
+
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Categoría</label>
+                    <select id="prodCategoria" onchange="verificarCategoria()" style="width: 100%; height: 48px; color: #666; outline: none; box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                        <option value="">Seleccione una categoría...</option>
+                        <option value="CAT-ALIM">Alimentos</option>
+                        <option value="CAT-BEBI">Bebidas (No alcohólicas)</option>
+                        <option value="CAT-CONF">Confitería</option>
+                        <option value="CAT-LICO">Licores</option>
+                        <option value="CAT-LIMP">Limpieza</option>
+                        <option value="CAT-OTRO">Otros</option>
+                    </select>
+                </div>
+
+                <div class="input-group" id="divVencimiento" style="display: none; margin-bottom: 15px;">
+                    <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Fecha de Vencimiento</label>
+                    <input type="date" id="prodVencimiento" style="width: 100%; height: 48px; color: #666; outline: none; box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                </div>
+
+                <div style="display: flex; gap: 10px; width: 100%; margin-bottom: 15px;">
+                    <div class="input-group" style="flex: 1;">
+                        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Precio ($)</label>
+                        <input type="number" step="0.01" id="prodPrecio" placeholder="0.00" style="width: 100%; height: 48px; color: #666; outline: none; box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                    </div>
+                    <div class="input-group" style="flex: 1;">
+                        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Stock Inicial</label>
+                        <input type="number" id="prodStock" placeholder="0" style="width: 100%; height: 48px; color: #666; outline: none; box-sizing: border-box; margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                    </div>
+                </div>
+
+                <button class="btn-login" onclick="agregarProducto()" style="margin-top: 10px; margin-bottom: 10px; width: 100%; background-color: #007bff; color: white; border: none; border-radius: 12px; height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2);">
+                    
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    
+                    Guardar Producto
+                </button>
+                <div id="msjAgregar" style="margin-top: 15px; font-weight: bold; font-size: 14px; text-align: center;"></div>
+            </div>
+            
+            <div id="tab-stock" class="sub-pantalla activa">
+                
+                <div id="vista-categorias" style="width: 100%; padding: 0px 0px 10px 0px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    
+                </div>
+                
+
+                <div id="vista-productos" style="width: 100%; display: none; flex-direction: column;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0px 0px 15px 0px;">
+                        <h3 id="titulo-categoria-stock" style="margin: 0; color: #333;">Categoría</h3>
+                    </div>
+
+                    <div id="lector-camara-stock" style="width: 100%;"></div>
+
+                    <div style="display: flex; gap: 8px; padding: 5px 0px; width: 100%; align-items: center; box-sizing: border-box;">
+                        <div style="flex: 1; display: flex; align-items: center; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 0 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); height: 46px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="min-width: 20px;">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" id="busquedaStock" placeholder="Buscar producto..." oninput="filtrarStock()" style="flex: 1; border: none; padding: 10px; outline: none; background: transparent; font-size: 15px; color: #333;">
+                        </div>
+                        
+                        <button id="btn-camara-stock" onclick="toggleCamaraStock()" style="display: flex; align-items: center; justify-content: center; background-color: #000; color: white; border: none; border-radius: 12px; cursor: pointer; width: 46px; height: 46px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div id="contenedor-vencimiento" style="display: none; padding: 5px 4px; width: 100%; box-sizing: border-box;">
+                        <label style="font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #444;">
+                            <input type="checkbox" id="checkVencimiento" onchange="aplicarFiltrosStock()" style="width: 18px; height: 18px; accent-color: #007bff;"> 
+                            Organizar por proximidad de vencimiento
+                        </label>
+                    </div>
+
+                    <div id="lista-productos-stock" style="width: 100%; padding: 5px 0px; box-sizing: border-box; overflow-y: auto;"></div>
+                </div>
+
+
+            </div>         
+
+
+
+            <div id="tab-perfil" class="sub-pantalla" style="width: 100%; padding-bottom: 20px; box-sizing: border-box;">
+
+                <div id="perfil-vista-principal" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                    <h3 style="color: #1a1a1a; text-align: left; width: 100%; margin-bottom: 20px; font-size: 18px; font-weight: bold;">Mi Perfil</h3>
+
+                    <div style="position: relative; width: 100px; height: 100px; margin-bottom: 10px;">
+                        <img id="perfil-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ccc'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>"
+                             alt="Foto de perfil"
+                             style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #007bff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); cursor: pointer;"
+                             onclick="document.getElementById('input-foto-perfil').click();">
+
+                        <div style="position: absolute; bottom: 0; right: 0; background: #007bff; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="document.getElementById('input-foto-perfil').click();">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        </div>
+                        <input type="file" id="input-foto-perfil" accept="image/*" style="display: none;" onchange="cambiarFotoPerfil(event)">
+                    </div>
+
+                    <h2 id="perfil-nombre-usuario" style="color: #1a1a1a; font-size: 20px; font-weight: bold; margin-bottom: 25px;">@Usuario</h2>
+
+                    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px;">
+                        
+                        <div onclick="navegarPerfil('perfil-vista-datos')" style="background: #fff; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 12px; color: #333; font-weight: 600; font-size: 15px;">
+                                <div style="background: #e9ecef; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000">
+                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                    </svg>
+                                </div>
+                                Editar Usuario
+                            </div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+
+                        <div onclick="navegarPerfil('perfil-vista-inventario')" style="background: #fff; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 12px; color: #333; font-weight: 600; font-size: 15px;">
+                                <div style="background: #e9ecef; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000">
+                                        <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72l5 2.73 5-2.73v3.72z"/>
+                                    </svg>
+                                </div>
+                                Gestión de Inventario
+                            </div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+
+                        <div onclick="navegarPerfil('perfil-vista-empresa')" style="background: #fff; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 12px; color: #333; font-weight: 600; font-size: 15px;">
+                                <div style="background: #e9ecef; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000">
+                                        <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+                                    </svg>
+                                </div>
+                                Información Empresa
+                            </div>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#adb5bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+
+                        <div onclick="cerrarSesion()" style="background: #fff; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #ffcccc; cursor: pointer; margin-top: 10px;">
+                            <div style="display: flex; align-items: center; gap: 12px; color: #dc3545; font-weight: 600; font-size: 15px;">
+                                <div style="background: #ffe5e5; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000">
+                                        <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                                    </svg>
+                                </div>
+                                Cerrar Sesión
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
+                <div id="perfil-vista-datos" style="width: 100%; display: none; flex-direction: column;">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <button onclick="navegarPerfil('perfil-vista-principal')" style="background: none; border: none; padding: 5px; cursor: pointer; display: flex; align-items: center; color: #1a1a1a;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        </button>
+                        <h3 style="margin: 0 0 0 10px; color: #1a1a1a; font-size: 18px; font-weight: bold;">Datos del Usuario</h3>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Nombre de Usuario</label>
+                        <input type="text" id="perfil-edit-usuario" style="background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 12px; height: 48px; outline: none; box-sizing: border-box; width: 100%;">
+                    </div>
+                    <div class="input-group">
+                        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Contraseña Actual</label>
+                        <input type="password" id="perfil-edit-clave-vieja" style="background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 12px; height: 48px; outline: none; box-sizing: border-box; width: 100%;">
+                    </div>
+                    <div class="input-group">
+                        <label style="display: block; text-align: left; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Nueva Contraseña</label>
+                        <input type="password" id="perfil-edit-clave-nueva" style="background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 12px; height: 48px; outline: none; box-sizing: border-box; width: 100%;">
+                    </div>
+                    <button class="btn-login" onclick="guardarDatosUsuario()" style="height: 48px; border-radius: 12px; margin-top: 10px;">Guardar Cambios</button>
+                </div>
+
+                <div id="perfil-vista-inventario" style="width: 100%; display: none; flex-direction: column;">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <button onclick="navegarPerfil('perfil-vista-principal')" style="background: none; border: none; padding: 5px; cursor: pointer; display: flex; align-items: center; color: #1a1a1a;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        </button>
+                        <h3 style="margin: 0 0 0 10px; color: #1a1a1a; font-size: 18px; font-weight: bold;">Gestión de Inventario</h3>
+                    </div>
+
+                        <div style="width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                            
+                            <button onclick="exportarInventario()" style="background: #80b3ff; color: white; border: none; border-radius: 16px; padding: 20px 10px; font-size: 14px; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 6px 15px rgba(128, 179, 255, 0.4); text-align: center; transition: transform 0.1s;">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Exportar<br>Inventario
+                            </button>
+                            
+                            <input type="file" id="input-importar-json" accept=".json, .txt" style="display: none;" onchange="importarInventario(event)">
+                            
+                            <button onclick="document.getElementById('input-importar-json').click();" style="background: #28a745; color: white; border: none; border-radius: 16px; padding: 20px 10px; font-size: 14px; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 6px 15px rgba(40, 167, 69, 0.4); text-align: center; transition: transform 0.1s;">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Importar<br>Inventario
+                            </button>
+
+                            <button onclick="compartirInventario()" style="background: #17a2b8; color: white; border: none; border-radius: 16px; padding: 20px 10px; font-size: 14px; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 6px 15px rgba(23, 162, 184, 0.4); text-align: center; transition: transform 0.1s;">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                                Compartir
+                            </button>
+
+                            <button onclick="eliminarTodoElInventario()" style="background: #dc3545; color: white; border: none; border-radius: 16px; padding: 20px 10px; font-size: 14px; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; box-shadow: 0 6px 15px rgba(220, 53, 69, 0.4); text-align: center; transition: transform 0.1s;">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                Borrar Todo<br>el Inventario
+                            </button>
+                            
+                        </div>
+                </div>
+
+                <div id="perfil-vista-empresa" style="width: 100%; display: none; flex-direction: column;">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <button onclick="navegarPerfil('perfil-vista-principal')" style="background: none; border: none; padding: 5px; cursor: pointer; display: flex; align-items: center; color: #1a1a1a;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        </button>
+                        <h3 style="margin: 0 0 0 10px; color: #1a1a1a; font-size: 18px; font-weight: bold;">Empresa</h3>
+                    </div>
+
+                    <div style="background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e0e0e0; text-align: left;">
+                        
+                        <h4 style="color: #007bff; margin-bottom: 5px; font-size: 15px;">Reseña Institucional</h4>
+                        <p style="color: #666; font-size: 13px; margin-bottom: 15px; line-height: 1.5;">(Espacio pa reseña...)</p>
+
+                        <h4 style="color: #007bff; margin-bottom: 5px; font-size: 15px;">Misión</h4>
+                        <p style="color: #666; font-size: 13px; margin-bottom: 15px; line-height: 1.5;">(Espacio pa misión...)</p>
+
+                        <h4 style="color: #007bff; margin-bottom: 5px; font-size: 15px;">Visión</h4>
+                        <p style="color: #666; font-size: 13px; line-height: 1.5;">(Espacio pa visión...)</p>
+                        
+                    </div>
+                </div>
+
+            </div>
+
+
+        </div>
+
+        <div class="bottom-nav">
+            <button class="nav-btn" onclick="cambiarPestana('tab-estadisticas', this); renderizarEstadisticas();">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                Estadísticas
+            </button>
+            
+            <button class="nav-btn" onclick="cambiarPestana('tab-vender', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                Vender
+            </button>
+
+            <button class="nav-btn center-btn" onclick="cambiarPestana('tab-agregar', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button class="nav-btn activa" onclick="cambiarPestana('tab-stock', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                Stock
+            </button>
+            <button class="nav-btn" onclick="cambiarPestana('tab-perfil', this); inicializarPerfil();">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Perfil
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-tasa" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Actualizar Tasa BCV</h3>
+        <p>Ingresa el valor actual en Bolívares</p>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+            <span style="font-size: 20px; font-weight: bold; color: #333;">Bs</span>
+            <input type="number" id="inTasaNueva" step="0.01" placeholder="Ej. 36.50">
+        </div>
+        <div class="modal-botones">
+            <button class="btn-cancelar" onclick="cerrarModalTasa()">Cancelar</button>
+            <button class="btn-guardar" onclick="guardarTasa()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-cantidad" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="titulo-modal-cantidad">Cantidad</h3>
+        <p id="desc-modal-cantidad">¿Cuántas unidades?</p>
+        <input type="number" id="inCantidadVenta" value="1" min="1" style="font-size: 24px; text-align: center;">
+        <div class="modal-botones">
+            <button class="btn-cancelar" onclick="cerrarModalCantidad()">Cancelar</button>
+            <button class="btn-guardar" onclick="confirmarCantidad()">Agregar</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-alerta" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="titulo-alerta" style="color: #000;">Atención</h3>
+        <p id="desc-alerta"></p>
+        <div class="modal-botones" id="botones-alerta">
+            <button class="btn-guardar" onclick="cerrarModalAlerta()" style="width: 100%;">Entendido</button>
+        </div>
+    </div>
+</div>
+
+<script src="chart.js"></script>
+<script src="html5-qrcode.min.js"></script> 
+<script src="basededato.js"></script>
+<script src="productos.js"></script>
+<script src="inventario.js"></script>
+<script src="ventas.js"></script>
+<script src="estadisticas.js"></script>
+<script src="perfil.js"></script>
+
+
+
+<script>
+  // Registrar el Service Worker para que la app funcione OFFLINE
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(registro => {
+          console.log('Motor Offline (Service Worker) activado:', registro.scope);
+        })
+        .catch(error => {
+          console.log('Error al activar el Motor Offline:', error);
+        });
+    });
+  }
+</script>
+
+<script>
+    (function initBotonAtras() {
+        let tiempoDobleToque = 0;
+        const limiteTiempo = 2000; // 2 segundos para el segundo toque
+
+        // 1. Inyectamos el CSS del mensaje flotante (Toast)
+        const estilo = document.createElement('style');
+        estilo.innerHTML = `
+            #toast-salir {
+                position: fixed;
+                top: -60px; /* Oculto arriba de la pantalla */
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(51, 51, 51, 0.95);
+                color: #ffffff;
+                padding: 12px 24px;
+                border-radius: 25px;
+                font-size: 14px;
+                font-weight: bold;
+                z-index: 10000;
+                transition: top 0.3s ease-in-out;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                pointer-events: none; /* Evita que estorbe al tocar la pantalla */
+                text-align: center;
+                white-space: nowrap;
+            }
+            #toast-salir.mostrar {
+                top: 25px; /* Baja a la pantalla */
+            }
+        `;
+        document.head.appendChild(estilo);
+
+        // 2. Creamos el elemento HTML visual
+        const toastDiv = document.createElement('div');
+        toastDiv.id = 'toast-salir';
+        toastDiv.innerText = 'Vuelva a pulsar para salir';
+        document.body.appendChild(toastDiv);
+
+        // 3. Forzamos un estado inicial en el historial
+        history.pushState(null, null, location.href);
+
+        // 4. Escuchamos el botón físico de Atrás de Android
+        window.addEventListener('popstate', function () {
+            const ahora = new Date().getTime();
+
+            if (ahora - tiempoDobleToque < limiteTiempo) {
+                // SEGUNDO TOQUE: Dejamos que salga / cierre la app
+                window.close(); // En algunas configuraciones PWA esto cierra la vista
+            } else {
+                // PRIMER TOQUE
+                tiempoDobleToque = ahora;
+                
+                // Empujamos un nuevo estado para engañar al navegador y evitar que salga
+                history.pushState(null, null, location.href);
+                
+                // Mostramos el mensaje flotante
+                toastDiv.classList.add('mostrar');
+                
+                // Lo ocultamos automáticamente pasados los 2 segundos
+                setTimeout(() => {
+                    toastDiv.classList.remove('mostrar');
+                }, limiteTiempo);
+            }
+        });
+    })();
+</script>
+</body>
+</html>
+</body>
+</html>
